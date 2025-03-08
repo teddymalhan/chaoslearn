@@ -1,19 +1,14 @@
 from flask import Flask, render_template, request, jsonify
 import os
 import random
-import openai
 from openai import OpenAI
-from googleapiclient.discovery import build
 from youtube_search import YoutubeSearch
 
+# Load API key
+OPENAI_API_KEY = "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"
 
-OPENAI_API_KEY = "<something>"
-YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
-
-scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
-
+# Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
-client.api_key = OPENAI_API_KEY
 
 def get_keywords_from_prompt(prompt):
     """
@@ -26,47 +21,41 @@ def get_keywords_from_prompt(prompt):
             max_tokens=300,
         )
     except Exception as e:
-        # Here we use a simple Flask error response instead of HTTPException from FastAPI
         return {"error": f"Error in GPT-4 call: {str(e)}"}
 
     result = response.choices[0].message.content.strip()
-    # Assuming the response returns keywords separated by commas
     keywords = [keyword.strip() for keyword in result.split(",") if keyword.strip()]
     return keywords
 
 def get_youtube_videos_for_keywords(keywords, max_results=5):
     """
-    Searches the YouTube API for videos matching each keyword.
+    Searches YouTube for videos matching each keyword using YoutubeSearch.
     Returns a list of video dictionaries with title, URL, and is_fun flag.
     """
-    def search_videos_for_keyword(keyword):
-        return YoutubeSearch(keyword, max_results=10).to_json()
-
-    return list(map(search_videos_for_keyword, keywords))
+    videos = []
+    for keyword in keywords:
+        search_results = YoutubeSearch(keyword, max_results=max_results).to_dict()
+        for video in search_results:
+            videos.append({
+                "title": video["title"],
+                "url": f"https://www.youtube.com{video['url_suffix']}",
+                "is_fun": False
+            })
+    return videos
 
 def get_youtube_fun_videos(fun_topic, max_results=3):
     """
-    Searches the YouTube API for fun videos based on the fun topic.
-    Returns a list of video dictionaries with title, URL, and is_fun flag.
+    Searches YouTube for fun videos based on the fun topic using YoutubeSearch.
     """
-    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
-    fun_videos = []
-    search_response = youtube.search().list(
-        q=fun_topic,
-        part="id,snippet",
-        maxResults=max_results,
-        type="video"
-    ).execute()
-    for item in search_response.get("items", []):
-        video_title = item["snippet"]["title"]
-        video_id = item["id"]["videoId"]
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
-        fun_videos.append({
-            "title": video_title,
-            "url": video_url,
-            "is_fun": True  # Mark as a fun video
+    videos = []
+    search_results = YoutubeSearch(fun_topic, max_results=max_results).to_dict()
+    for video in search_results:
+        videos.append({
+            "title": video["title"],
+            "url": f"https://www.youtube.com{video['url_suffix']}",
+            "is_fun": True
         })
-    return fun_videos
+    return videos
 
 def interleave_fun_videos(useful_videos, fun_videos):
     """
@@ -95,44 +84,15 @@ def create_app():
         if not fun_topic:
             return jsonify({"error": "No fun topic provided"}), 400
         
-        # Extract keywords using GPT-4 mini chat model
         keywords = get_keywords_from_prompt(prompt)
-        if isinstance(keywords, dict) and keywords.get("error"):
+        if isinstance(keywords, dict) and "error" in keywords:
             return jsonify(keywords), 500
         
-        # Get useful videos from YouTube using the extracted keywords
         useful_videos = get_youtube_videos_for_keywords(keywords)
-        
-        # Get fun videos using the provided fun topic
         fun_videos = get_youtube_fun_videos(fun_topic)
         
-        # Interleave fun videos into the useful videos list
         combined_videos = interleave_fun_videos(useful_videos, fun_videos)
         
-        # Return a JSON list of video links with titles and is_fun flag
-        video_links = [{
-            "title": video["title"],
-            "url": video["url"],
-            "is_fun": video["is_fun"]
-        } for video in combined_videos]
-        
-        return jsonify(video_links)
+        return jsonify(combined_videos)
     
     return app
-
-if __name__ == "__main__":
-    app = create_app()
-    app.run(debug=True)
-
-    # # Get the text prompt from the frontend
-    # # 
-
-    # # Get a list of keywords from OpenAI API
-    # # 
-    # # Pass that list of keywords to the YouTube API
-    # # 
-    # # Make a random list of videos with those keywords, plus a list with an attribute that its a fun video
-    # # 
-    # # ['Video1', 'Video2', 'Cat Video', Video1] 
-
-    # return app
