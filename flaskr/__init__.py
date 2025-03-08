@@ -4,9 +4,13 @@ import random
 import openai
 from openai import OpenAI
 from googleapiclient.discovery import build
+from youtube_search import YoutubeSearch
+
 
 OPENAI_API_KEY = "<something>"
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
+
+scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 client.api_key = OPENAI_API_KEY
@@ -35,25 +39,10 @@ def get_youtube_videos_for_keywords(keywords, max_results=5):
     Searches the YouTube API for videos matching each keyword.
     Returns a list of video dictionaries with title, URL, and is_fun flag.
     """
-    youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
-    videos = []
-    for keyword in keywords:
-        search_response = youtube.search().list(
-            q=keyword,
-            part="id,snippet",
-            maxResults=max_results,
-            type="video"
-        ).execute()
-        for item in search_response.get("items", []):
-            video_title = item["snippet"]["title"]
-            video_id = item["id"]["videoId"]
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            videos.append({
-                "title": video_title,
-                "url": video_url,
-                "is_fun": False  # Mark as a useful video
-            })
-    return videos
+    def search_videos_for_keyword(keyword):
+        return YoutubeSearch(keyword, max_results=10).to_json()
+
+    return list(map(search_videos_for_keyword, keywords))
 
 def get_youtube_fun_videos(fun_topic, max_results=3):
     """
