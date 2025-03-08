@@ -4,8 +4,6 @@ import random
 import openai
 from googleapiclient.discovery import build
 
-# Load API keys from environment variables
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
 
 # Set up OpenAI API key
