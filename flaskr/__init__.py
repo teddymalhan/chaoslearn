@@ -2,28 +2,23 @@ from flask import Flask, render_template, request, jsonify
 import os
 import random
 import openai
+from openai import OpenAI
 from googleapiclient.discovery import build
 
+OPENAI_API_KEY = "<something>"
 YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
 
-# Set up OpenAI API key
-openai.api_key = OPENAI_API_KEY
+client = OpenAI(api_key=OPENAI_API_KEY)
+client.api_key = OPENAI_API_KEY
 
 def get_keywords_from_prompt(prompt):
     """
     Uses OpenAI's chat completion API with model 'gpt-4o-mini' to extract keywords from the prompt.
     """
     try:
-        response = openai.chat.completion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"Extract a list of keywords from the following prompt: {prompt}"}
-                    ],
-                }
-            ],
+            messages=[{"role": "user", "content": f"Extract a list of keywords from the following prompt: {prompt}"}],
             max_tokens=300,
         )
     except Exception as e:

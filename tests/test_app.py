@@ -1,21 +1,17 @@
 import openai
+from openai import OpenAI
 
+client = OpenAI(api_key="apikey")
+client.api_key = "apikey"
 
 def get_keywords_from_prompt(prompt):
     """
     Uses OpenAI's chat completion API with model 'gpt-4o-mini' to extract keywords from the prompt.
     """
     try:
-        response = openai.chatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"Extract a list of keywords from the following prompt: {prompt}"}
-                    ],
-                }
-            ],
+            messages=[{"role": "user", "content": f"Extract a list of keywords from the following prompt: {prompt}"}],
             max_tokens=300,
         )
     except Exception as e:
