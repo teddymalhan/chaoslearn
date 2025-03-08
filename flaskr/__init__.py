@@ -5,7 +5,7 @@ from openai import OpenAI
 from youtube_search import YoutubeSearch
 
 # Load API key
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = 
 
 # Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
