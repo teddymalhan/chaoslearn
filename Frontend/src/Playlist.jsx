@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom"; // Import useLocation & useNavigate
 import { motion } from "framer-motion";
 import ReactPlayer from "react-player";
 
-function Playlist({ videos }) {
+function Playlist() {
+    const location = useLocation(); // Get passed videos from navigation
+    const navigate = useNavigate(); // Hook to go back to homepage
+    const videos = location.state?.videos || []; // Retrieve videos, default to empty array
+
     const [openSection, setOpenSection] = useState(false);
     const [currentVideo, setCurrentVideo] = useState(null);
 
-    // Set first video when videos are received
+    // Set the first video when videos are received
     useEffect(() => {
         if (videos.length > 0) {
             setCurrentVideo(videos[0].url);
@@ -15,13 +20,22 @@ function Playlist({ videos }) {
 
     return (
         <>
-            {/* View Playlist Button */}
-            <div className="flex justify-end mt-5 mr-5">
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-5 mx-5">
+                {/* Back Button */}
+                <button
+                    onClick={() => navigate("/")} // Navigate back to homepage
+                    className="bg-gray-800 text-white border-2 border-gray-500 rounded-lg hover:bg-gray-600 p-2 cursor-pointer"
+                >
+                    ⬅ Back
+                </button>
+
+                {/* View Playlist Button */}
                 <button
                     onClick={() => setOpenSection(!openSection)}
                     className="bg-black text-white border-2 border-red-600 rounded-lg hover:bg-gray-800 p-2 cursor-pointer"
                 >
-                    View Playlist
+                    {openSection ? "Hide Playlist" : "View Playlist"}
                 </button>
             </div>
 

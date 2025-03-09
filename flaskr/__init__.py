@@ -5,8 +5,8 @@ from openai import OpenAI
 import yt_dlp  # Using yt_dlp as an alternative to youtubei
 from flask_cors import CORS  
 
-# Load API key
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+# Load API key from environment variable
+OPENAI_API_KEY = "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"
 
 # Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -14,7 +14,6 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 def get_keywords_from_prompt(prompt):
     """
     Uses OpenAI's chat completion API with model 'gpt-4o-mini' to generate an ordered lesson plan with YouTube-searchable keywords.
-    Ensures that keywords are unique and cover different aspects of the topic.
     """
     try:
         response = client.chat.completions.create(
@@ -22,26 +21,13 @@ def get_keywords_from_prompt(prompt):
             messages=[{
                 "role": "user",
                 "content": f"""
-                Create an **ordered lesson plan** with different keywords that can be searched on YouTube to generate a complete video series lesson plan for the given topic. 
+                Create an **ordered lesson plan** with different keywords that can be searched on YouTube to generate a complete video series lesson plan for the given topic.
 
                 - **Ensure that each keyword is unique and distinct.**
-                - **Do not include repetitive or nearly identical search terms.**
                 - **Each keyword should focus on a different concept, application, or technical detail.**
                 - **Ensure that the keywords are commonly searched on YouTube and yield different video results.**
                 
                 **Return the lesson plan as an ordered list in a single string, with each lesson separated by commas.**
-                
-                ### **Example Format** (for "Machine Learning"):  
-                1. Introduction to Machine Learning,  
-                2. History and Evolution of Machine Learning,  
-                3. Supervised vs. Unsupervised Learning: Key Differences,  
-                4. Common Machine Learning Algorithms Explained,  
-                5. Feature Engineering and Data Preprocessing,  
-                6. Understanding Bias and Variance in Machine Learning,  
-                7. Real-World Applications of Machine Learning,  
-                8. Explainability and Interpretability in AI,  
-                9. Hands-on Machine Learning Project Tutorial,  
-                10. Ethical Considerations in Machine Learning.  
 
                 Now generate a lesson plan for this topic: **{prompt}**
                 """
@@ -59,7 +45,6 @@ def search_youtube_videos(query, max_results=5, duration_filter=None, is_fun=Fal
     """
     Uses yt_dlp to search for YouTube videos based on the query.
     Filters based on duration and ensures that fun videos are marked correctly.
-    Includes channel name in response.
     """
     ydl_opts = {
         "quiet": True,
@@ -82,13 +67,17 @@ def search_youtube_videos(query, max_results=5, duration_filter=None, is_fun=Fal
         duration = entry.get("duration", 0)  # Duration in seconds
 
         # **Filter by duration for study videos**
-        if not is_fun:  
+        if not is_fun:
             if duration_filter == "short" and duration >= 240:  # Less than 4 minutes
                 continue
             if duration_filter == "medium" and (duration < 240 or duration > 1200):  # 4-20 minutes
                 continue
             if duration_filter == "long" and duration <= 1200:  # More than 20 minutes
                 continue
+
+        # **Ensure fun videos are Shorts (less than 60s)**
+        if is_fun and duration >= 60:
+            continue
 
         # **Avoid duplicate titles**
         if video_title in seen_titles:
@@ -98,44 +87,55 @@ def search_youtube_videos(query, max_results=5, duration_filter=None, is_fun=Fal
         videos.append({
             "title": video_title,
             "url": video_url,
-            "channel": video_channel,  # Include channel name
-            "is_fun": is_fun  # **Set True for fun videos, False for study videos**
+            "channel": video_channel,
+            "is_fun": is_fun
         })
 
     return videos
 
 def get_youtube_fun_videos(fun_topic, max_results=3):
     """
-    Uses yt_dlp to search for fun YouTube videos (not necessarily Shorts).
-    Always sets is_fun=True.
+    Uses yt_dlp to search for fun YouTube Shorts (videos under 60 seconds).
     """
     return search_youtube_videos(fun_topic, max_results=max_results, is_fun=True)
 
 def get_youtube_videos_for_keywords(keywords, max_results=5, duration="medium"):
     """
     Uses yt_dlp to search for educational videos on YouTube for each keyword, filtered by duration.
-    Always sets is_fun=False.
     """
     videos = []
     for keyword in keywords:
         videos.extend(search_youtube_videos(keyword, max_results=max_results, duration_filter=duration, is_fun=False))
     return videos
 
-def interleave_fun_videos(useful_videos, fun_videos):
+def interleave_fun_videos(useful_videos, fun_videos, slider_value):
     """
-    Randomly interleaves the fun videos into the useful videos list.
+    Interleaves fun videos into useful videos based on the randomness slider value.
     """
-    combined_videos = useful_videos.copy()
-    for fun_video in fun_videos:
-        insert_index = random.randint(0, len(combined_videos))
-        combined_videos.insert(insert_index, fun_video)
+    combined_videos = []
+    useful_count = 0
+
+    # Define the fun video insertion rate based on slider value
+    insertion_rates = {1: 5, 2: 4, 3: 3, 4: 2, 5: 1}
+    insert_after = insertion_rates.get(slider_value, 5)  # Default to 1 fun video per 5 study videos
+
+    for video in useful_videos:
+        combined_videos.append(video)
+        useful_count += 1
+
+        # Insert a fun video after 'insert_after' study videos
+        if useful_count % insert_after == 0 and fun_videos:
+            combined_videos.append(fun_videos.pop(0))
+
+    # If any fun videos remain, append them at the end
+    combined_videos.extend(fun_videos)
+
     return combined_videos
 
 def create_app():
     app = Flask(__name__)
     CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
-    
     @app.route("/")
     def index():
         return render_template("index.html")
@@ -147,7 +147,7 @@ def create_app():
         # Extract parameters
         study_topic = data.get("studyTopic")
         duration = data.get("duration", "medium")  # Use "medium" as default
-        slider_value = data.get("sliderValue")  # Dummy variable
+        slider_value = int(data.get("sliderValue", 5))  # Default to highest fun setting
         random_theme = data.get("randomTheme")
 
         if not study_topic:
@@ -162,13 +162,13 @@ def create_app():
         
         # Get useful videos from YouTube using the extracted keywords and filter by duration
         useful_videos = get_youtube_videos_for_keywords(keywords, duration=duration)
-        
-        # Get fun videos using the provided random theme (not checking for Shorts)
-        fun_videos = get_youtube_fun_videos(random_theme)
+
+        # Get fun videos (only Shorts) based on the provided random theme
+        fun_videos = get_youtube_fun_videos(random_theme, max_results=len(useful_videos) // 2)  # Get enough fun videos
         
         # Interleave fun videos into the useful videos list
-        combined_videos = interleave_fun_videos(useful_videos, fun_videos)
+        combined_videos = interleave_fun_videos(useful_videos, fun_videos, slider_value)
         
         return jsonify(combined_videos)
-    
+
     return app

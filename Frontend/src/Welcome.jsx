@@ -1,15 +1,16 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import LottieLoader from "./LottieLoader";
-import Playlist from "./Playlist";
 
 function Welcomepage() {
+  const navigate = useNavigate(); // Navigation hook
+
   // State variables
   const [studyTopic, setStudyTopic] = useState("");
   const [duration, setDuration] = useState("");
   const [sliderValue, setSliderValue] = useState(5);
   const [randomTheme, setRandomTheme] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lessonVideos, setLessonVideos] = useState([]); // Stores fetched video data
 
   // Input handlers
   const handleTopicChange = (event) => setStudyTopic(event.target.value);
@@ -46,7 +47,9 @@ function Welcomepage() {
 
       const data = await response.json();
       console.log("Fetched videos:", data);
-      setLessonVideos(data); // Store fetched videos
+
+      // Navigate to the Playlist page and pass fetched videos
+      navigate("/playlist", { state: { videos: data } });
     } catch (error) {
       console.error("Error fetching videos:", error);
     } finally {
@@ -133,9 +136,6 @@ function Welcomepage() {
           Create My Lesson
         </button>
       </div>
-
-      {/* Pass videos to Playlist */}
-      <Playlist videos={lessonVideos} />
     </div>
   );
 }
