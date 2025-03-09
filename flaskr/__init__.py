@@ -132,29 +132,24 @@ def interleave_fun_videos(useful_videos, fun_videos):
     return combined_videos
 
 
-def get_subtitles(youtube_id):
-    url = f"https://www.youtube.com/watch?v={youtube_id}"
+def get_subtitles(youtube_id, lang='en'):
+
+    video_url = f"https://www.youtube.com/watch?v={youtube_id}"
+
     ydl_opts = {
-        "skip_download": True,
-        "writesubtitles": True,
-        "subtitleslangs": ['en'],
+        'writeautomaticsub': True,  # Download auto-generated subtitles
+        'subtitleslangs': [lang],   # Language of the subtitles
+        'skip_download': True,      # Skip the video download, we only need the subtitles
+        'outtmpl': 'subs.txt'  # Template for naming the output file
     }
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        subtitles = info.get('subtitles', {})
-        en_subtitles = subtitles.get('en', [])
-        if en_subtitles:
-            # Fetch the URL of the English subtitles
-            subtitle_url = en_subtitles[0].get('url')
-            if subtitle_url:
-                # Download the subtitle content
-                import requests
-                response = requests.get(subtitle_url)
-                if response.status_code == 200:
-                    return response.text
-                else:
-                    raise Exception(f"Failed to download subtitles: {response.status_code}")
-        raise Exception("No English subtitles found.")
+        ydl.download([video_url])
+    
+    with open('subs.txt.en.vtt', 'r') as file:
+        subtitles = file.read()
+    
+    return subtitles
 
 def create_quiz(subtitles):
     """
