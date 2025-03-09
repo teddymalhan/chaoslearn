@@ -6,7 +6,7 @@ import yt_dlp  # Using yt_dlp as an alternative to youtubei
 from flask_cors import CORS  
 
 # Load API key from environment variable
-OPENAI_API_KEY = "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"
+OPENAI_API_KEY = 
 
 # Initialize OpenAI client
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -108,6 +108,52 @@ def get_youtube_videos_for_keywords(keywords, max_results=5, duration="medium"):
         videos.extend(search_youtube_videos(keyword, max_results=max_results, duration_filter=duration, is_fun=False))
     return videos
 
+
+def get_subtitles(youtube_id):
+     url = f"https://www.youtube.com/watch?v={youtube_id}"
+     ydl_opts = {
+         "skip_download": True,
+         "writesubtitles": True,
+         "subtitleslangs": ['en'],
+     }
+     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+         info = ydl.extract_info(url, download=False)
+         subtitles = info.get('subtitles', {})
+         en_subtitles = subtitles.get('en', [])
+         if en_subtitles:
+             # Fetch the URL of the English subtitles
+             subtitle_url = en_subtitles[0].get('url')
+             if subtitle_url:
+                 # Download the subtitle content
+                 import requests
+                 response = requests.get(subtitle_url)
+                 if response.status_code == 200:
+                     return response.text
+                 else:
+                     raise Exception(f"Failed to download subtitles: {response.status_code}")
+         raise Exception("No English subtitles found.")
+ 
+def create_quiz(subtitles):
+     """
+         Uses OpenAI's chat completion API with model 'gpt-4o-mini' to generate an ordered lesson plan with YouTube-searchable keywords.
+         Ensures that keywords are unique and cover different aspects of the topic.
+         """
+     try:
+         response = client.chat.completions.create(
+             model="gpt-4o-mini",
+             messages=[{
+                 "role": "user",
+                 "content": f"""make 8 mcq questions based on this youtube transcript and return it as a json file: {subtitles}. keep the structure like [{'question', 'answer'}]"""
+             }],
+             max_tokens=300,
+         )
+     except Exception as e:
+         return {"error": f"Error in GPT-4 call: {str(e)}"}
+ 
+     result = response.choices[0].message.content.strip()
+     return result
+
+
 def interleave_fun_videos(useful_videos, fun_videos, slider_value):
     """
     Interleaves fun videos into useful videos based on the randomness slider value.
@@ -131,6 +177,68 @@ def interleave_fun_videos(useful_videos, fun_videos, slider_value):
     combined_videos.extend(fun_videos)
 
     return combined_videos
+
+# @app.route("/quiz", methods=["POST"])
+# def process_quiz():
+#     data = request.json
+
+#     # Extract parameters
+#     youtube_id = data.get("youtubeId")
+
+#     if not youtube_id:
+#         return jsonify({"error": "No YouTube ID provided"}), 400
+    
+#     # Get quiz questions for the provided YouTube video ID
+#     subtitles = get_subtitles(youtube_id)
+
+#     quiz = create_quiz(subtitles)
+
+#     return jsonify(quiz)
+
+def get_subtitles(youtube_id):
+    url = f"https://www.youtube.com/watch?v={youtube_id}"
+    ydl_opts = {
+        "skip_download": True,
+        "writesubtitles": True,
+        "subtitleslangs": ['en'],
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        subtitles = info.get('subtitles', {})
+        en_subtitles = subtitles.get('en', [])
+        if en_subtitles:
+            # Fetch the URL of the English subtitles
+            subtitle_url = en_subtitles[0].get('url')
+            if subtitle_url:
+                # Download the subtitle content
+                import requests
+                response = requests.get(subtitle_url)
+                if response.status_code == 200:
+                    return response.text
+                else:
+                    raise Exception(f"Failed to download subtitles: {response.status_code}")
+        raise Exception("No English subtitles found.")
+
+def create_quiz(subtitles):
+    """
+        Uses OpenAI's chat completion API with model 'gpt-4o-mini' to generate an ordered lesson plan with YouTube-searchable keywords.
+        Ensures that keywords are unique and cover different aspects of the topic.
+        """
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": f"""make 8 mcq questions based on this youtube transcript and return it as a json file: {subtitles}. keep the structure like [{'question', 'answer'}]"""
+            }],
+            max_tokens=300,
+        )
+    except Exception as e:
+        return {"error": f"Error in GPT-4 call: {str(e)}"}
+
+    result = response.choices[0].message.content.strip()
+    return result
+
 
 def create_app():
     app = Flask(__name__)
@@ -170,5 +278,4 @@ def create_app():
         combined_videos = interleave_fun_videos(useful_videos, fun_videos, slider_value)
         
         return jsonify(combined_videos)
-
     return app

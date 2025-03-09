@@ -1,22 +1,27 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom"; // Import useLocation & useNavigate
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import ReactPlayer from "react-player";
 
 function Playlist() {
-    const location = useLocation(); // Get passed videos from navigation
-    const navigate = useNavigate(); // Hook to go back to homepage
-    const videos = location.state?.videos || []; // Retrieve videos, default to empty array
+    const location = useLocation(); 
+    const navigate = useNavigate();
+    const videos = location.state?.videos || [];
 
     const [openSection, setOpenSection] = useState(false);
-    const [currentVideo, setCurrentVideo] = useState(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
-    // Set the first video when videos are received
+    // Set first video when videos are received
     useEffect(() => {
         if (videos.length > 0) {
-            setCurrentVideo(videos[0].url);
+            setCurrentIndex(0);
         }
     }, [videos]);
+
+    // Function to go to the next video
+    const handleNextVideo = () => {
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % videos.length);
+    };
 
     return (
         <>
@@ -24,7 +29,7 @@ function Playlist() {
             <div className="flex justify-between mt-5 mx-5">
                 {/* Back Button */}
                 <button
-                    onClick={() => navigate("/")} // Navigate back to homepage
+                    onClick={() => navigate("/")}
                     className="bg-gray-800 text-white border-2 border-gray-500 rounded-lg hover:bg-gray-600 p-2 cursor-pointer"
                 >
                     ⬅ Back
@@ -43,13 +48,29 @@ function Playlist() {
             <motion.div
                 animate={{ x: openSection ? -150 : 0 }}
                 transition={{ duration: 0.3 }}
-                className="flex flex-col items-center py-[7vh] gap-4"
+                className="flex flex-col items-center py-[7vh] gap-4 relative"
             >
-                {currentVideo ? (
-                    <ReactPlayer key={currentVideo} url={currentVideo} controls width="854px" height="480px" />
+                {videos.length > 0 ? (
+                    <ReactPlayer
+                        key={videos[currentIndex]?.url}
+                        url={videos[currentIndex]?.url}
+                        controls
+                        width="854px"
+                        height="480px"
+                        playing={true} // Autoplay enabled
+                        onEnded={handleNextVideo} // Play next video when current one ends
+                    />
                 ) : (
                     <p className="text-white">No video selected</p>
                 )}
+
+                {/* Next Video Floating Button */}
+                <button
+                    onClick={handleNextVideo}
+                    className="absolute bottom-5 right-5 bg-[#E50914] text-white p-4 rounded-full shadow-lg text-2xl hover:bg-red-700 transition transform hover:scale-105"
+                >
+                    ➡
+                </button>
             </motion.div>
 
             {/* Playlist Sidebar */}
@@ -71,8 +92,10 @@ function Playlist() {
                     videos.map((video, index) => (
                         <div
                             key={index}
-                            className="rounded-md bg-black p-2 my-3 text-white grid grid-cols-2 gap-4 cursor-pointer hover:bg-gray-700 transition"
-                            onClick={() => setCurrentVideo(video.url)}
+                            className={`rounded-md bg-black p-2 my-3 text-white grid grid-cols-2 gap-4 cursor-pointer hover:bg-gray-700 transition ${
+                                index === currentIndex ? "border-2 border-yellow-400" : ""
+                            }`}
+                            onClick={() => setCurrentIndex(index)}
                         >
                             {/* Video Thumbnail */}
                             <div className="flex items-center">
