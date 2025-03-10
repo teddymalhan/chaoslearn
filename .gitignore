@@ -2,4 +2,4 @@
 .env
 OPENAI_API_KEY
 __pycache__/
-/MM-Hackathon-Frontend/node_modules/
+/MM-Hackathon-Frontend/node_modules/.DS_Store
