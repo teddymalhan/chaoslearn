@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
 import LottieLoader from "./LottieLoader";
-import Playlist from "./Playlist";
 
 // Utility function to replace the imported cn function
 function cn(...classes) {
